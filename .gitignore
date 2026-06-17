@@ -1,0 +1,55 @@
+# =========================================
+# CRITICAL SECURITY (Environment Variables)
+# =========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# =========================================
+# Dependencies
+# =========================================
+node_modules/
+.pnp
+.pnp.js
+
+# =========================================
+# Build Outputs (Vite/React)
+# =========================================
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# =========================================
+# Logs
+# =========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================================
+# OS Generated Files
+# =========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================================
+# IDEs and Editors
+# =========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
