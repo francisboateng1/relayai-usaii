@@ -1,1 +1,12 @@
 @import "tailwindcss";
+/* Sidebar.css */
+.sidebar {
+  position: fixed;
+  left: -250px; /* Hide off-screen */
+  transition: 0.3s; /* Smooth animation */
+  width: 250px;
+}
+
+.sidebar.active {
+  left: 0; /* Slide into view */
+}

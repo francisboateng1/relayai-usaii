@@ -49,7 +49,7 @@ const [activeScaffoldId, setActiveScaffoldId] = useState(null);
 function App() {
   // --- Sidebar & General State ---
   const [historyList, setHistoryList] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Controls the generation form type ('MICRO_SAAS' or 'OPPORTUNITY')
   const [selectedMode, setSelectedMode] = useState('MICRO_SAAS');
@@ -97,7 +97,7 @@ const abortControllerRef = useRef(null);
   // --- API Handlers ---
   const fetchHistoryList = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/conversations');
+      const response = await fetch('https://relayai-usaii.vercel.app/api/conversations');
       const resData = await response.json();
       if (resData.success) {
         setHistoryList(resData.data);
@@ -110,10 +110,10 @@ const abortControllerRef = useRef(null);
   const handleLoadStoredWorkspace = async (savedScaffoldId) => {
     setLoading(true);
     try {
-      const dataRes = await fetch(`http://localhost:5000/api/scaffolds/${savedScaffoldId}`);
+      const dataRes = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${savedScaffoldId}`);
       const dataJson = await dataRes.json();
       
-      const historyRes = await fetch(`http://localhost:5000/api/conversations/${savedScaffoldId}/history`);
+      const historyRes = await fetch(`https://relayai-usaii.vercel.app/api/conversations/${savedScaffoldId}/history`);
       const historyJson = await historyRes.json();
 
       if (dataJson.success && historyJson.success) {
@@ -173,7 +173,7 @@ const handleStopGeneration = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/generate', {
+      const response = await fetch('https://relayai-usaii.vercel.app/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userPrompt: finalPrompt, mode: selectedMode })
@@ -208,7 +208,7 @@ abortControllerRef.current = new AbortController();
     setChatLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/scaffolds/${scaffoldId}/chat`, {
+      const response = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${scaffoldId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userMessage: newUserMsg.message_text }),

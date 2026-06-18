@@ -7,15 +7,18 @@ const { GoogleGenAI, Type } = require('@google/genai');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
 
 app.use(cors( {
 origin: 'https://relayai-usaii.vercel.app', // Adjust this if your frontend runs on a different origin
 methods: ['GET', 'POST', 'PUT', 'DELETE'],
+credentials: true,
 allowedHeaders: ['Content-Type', 'Authorization']
 
 }));
 
+
+const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
