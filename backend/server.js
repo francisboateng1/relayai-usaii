@@ -590,3 +590,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`[SERVER] Active and persistent on port ${PORT}`);
 });
+
+module.exports = app;
