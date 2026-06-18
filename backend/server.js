@@ -110,9 +110,7 @@ const chatResponseSchema = {
     required: ["chat_reply", "updated_scaffold_data"]
 };
 
-// -------------------------------------------------------------------------
-// AUTOMATED MODEL FALLBACK ENGINE
-// -------------------------------------------------------------------------
+
 // -------------------------------------------------------------------------
 // AUTOMATED MODEL FALLBACK ENGINE
 // -------------------------------------------------------------------------
@@ -568,6 +566,15 @@ app.get('/api/health', async (req, res) => {
     } catch (error) {
         res.status(500).json({ status: 'unhealthy', error: error.message });
     }
+});
+
+
+// 🩺 Health Check Route
+app.get('/', (req, res) => {
+    res.status(200).json({ 
+        status: "success",
+        message: "Relay AI Backend is live and routing traffic!" 
+    });
 });
 
 app.listen(PORT, () => {
