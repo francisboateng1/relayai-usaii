@@ -122,7 +122,7 @@ const chatResponseSchema = {
 // AUTOMATED MODEL FALLBACK ENGINE
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
-    const modelCascade = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'];
+    const modelCascade = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
     let lastError = null;
 
     for (const modelName of modelCascade) {
@@ -289,8 +289,8 @@ app.post('/api/generate', async (req, res) => {
         
         CRITICAL RULES:
         1. Set the specific JSON field 'scaffold_type' to exactly: "${selectedMode}".
-        2. If mode is 'MICRO_SAAS', act as a Principal Systems Architect. Fully populate: structural_risks, blueprint_specs, and milestone_tasks arrays. Leave all Opportunity fields empty/null.
-        3. If mode is 'OPPORTUNITY', act as a Strategic Navigator for grants and hackathons. Fully populate: provider, funding_amount, deadline, target_audience, effort_level, core_requirements, eligibility_blueprint, and action_playbook. Leave Micro SaaS arrays empty/null.
+        2. If mode is 'MICRO_SAAS', act as a Principal Systems Architect. Give  seven days executable plan. Fully populate: structural_risks, blueprint_specs, and milestone_tasks arrays. Leave all Opportunity fields empty/null.
+        3. If mode is 'OPPORTUNITY', act as a Strategic Navigator for grants and hackathons. Give  seven days executable plan. Fully populate: provider, funding_amount, deadline, target_audience, effort_level, core_requirements, eligibility_blueprint, and action_playbook. Leave Micro SaaS arrays empty/null.
         
         Output ONLY raw valid JSON matching the schema.
         `;
@@ -339,7 +339,7 @@ app.post('/api/generate', async (req, res) => {
 
     } catch (error) {
         console.error("[GENERATION FAIL]", error);
-        res.status(500).json({ success: false, error: "Failed to generate or save scaffold data securely." });
+        res.status(500).json({ success: false, error: "Failed to generate or save scaffold data securely.", details: error.message });
     }
 });
 
@@ -423,7 +423,7 @@ app.get('/api/scaffolds/:id', async (req, res) => {
             });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, details: error.stack });
     }
 });
 

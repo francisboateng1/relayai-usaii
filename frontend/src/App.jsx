@@ -239,19 +239,33 @@ abortControllerRef.current = new AbortController();
       {/* =========================================
           LEFT SIDEBAR: DASHBOARD LOGS
           ========================================= */}
-      <aside className={`bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 flex-shrink-0 z-20 transition-all duration-300 ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-none'}`}>
+      <aside 
+        className={`fixed lg:relative top-0 left-0 h-full bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 flex-shrink-0 z-40 transition-transform duration-300 w-72 
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:w-0 lg:border-none lg:overflow-hidden'}`}
+      >
         <div className="p-4 border-b border-slate-800 flex items-center justify-between min-w-[18rem]">
           <div className="flex items-center gap-2 font-bold tracking-wide text-sm text-white">
             <History className="h-4 w-4 text-indigo-400" />
             <span>Workspace Logs</span>
           </div>
-          <button 
-            onClick={handleStartFreshWorkspace}
-            className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            title="Start New Session Workspace"
-          >
-            <PlusCircle className="h-5 w-5" />
-          </button>
+          
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={handleStartFreshWorkspace}
+              className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              title="Start New Session Workspace"
+            >
+              <PlusCircle className="h-5 w-5" />
+            </button>
+            {/* MOBILE CLOSE BUTTON */}
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 lg:hidden"
+              title="Close Sidebar"
+            >
+              <span className="text-xl leading-none">&times;</span> {/* Or import X from lucide-react */}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2 min-w-[18rem]">
@@ -264,7 +278,10 @@ abortControllerRef.current = new AbortController();
               return (
                 <button
                   key={folder.scaffold_id}
-                  onClick={() => handleLoadStoredWorkspace(folder.scaffold_id)}
+                  onClick={() => {
+                    handleLoadStoredWorkspace(folder.scaffold_id);
+                    if (window.innerWidth < 1024) setIsSidebarOpen(false); // Auto-close on mobile after selecting
+                  }}
                   className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1 border text-xs group ${
                     isSelected ? 'bg-slate-800 border-indigo-500 text-white shadow-inner' : 'bg-slate-900/40 border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                   }`}
@@ -279,7 +296,6 @@ abortControllerRef.current = new AbortController();
           )}
         </div>
       </aside>
-
       {/* =========================================
           MAIN INTERACTIVE WORKSPACE
           ========================================= */}
@@ -287,11 +303,13 @@ abortControllerRef.current = new AbortController();
         
         {/* TOP HEADER */}
         <header className={`bg-gradient-to-r flex-shrink-0 ${themeColor} text-white py-5 px-8 shadow-md transition-colors duration-500 flex items-center`}>
-          {!isSidebarOpen && (
-            <button onClick={() => setIsSidebarOpen(true)} className="mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors">
-              <History className="h-5 w-5" />
-            </button>
-          )}
+  {/* Always show toggle button on mobile, show on desktop only if closed */}
+  <button 
+    onClick={() => setIsSidebarOpen(true)} 
+    className={`mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors ${isSidebarOpen ? 'hidden lg:hidden' : 'block'}`}
+  >
+    <History className="h-5 w-5" />
+  </button>
           <div className="flex-1 flex justify-between items-center max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <Rocket className="h-6 w-6 text-cyan-400 animate-pulse" />
