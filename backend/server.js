@@ -125,7 +125,7 @@ const chatResponseSchema = {
 // AUTOMATED MODEL FALLBACK ENGINE
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
-    const modelCascade = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+    const modelCascade = ['gemini-3.5-flash', 'gemini-3.1-flash', 'gemini-2.5-flash'];
     let lastError = null;
 
     for (const modelName of modelCascade) {
