@@ -2,5 +2,11 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "mysql2": "^3.22.5"
+  },
+  "scripts": {
+    "build": "cd client && npm install && npm run build"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
   }
 }
