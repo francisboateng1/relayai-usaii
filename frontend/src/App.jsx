@@ -7,15 +7,11 @@ import {
 } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 
-
-
-
-
-
 const ChatInterface = ({ scaffoldId }) => {
     const { sendMessage, stop, isGenerating } = useChat(scaffoldId);
     const [input, setInput] = useState("");
-const [activeScaffoldId, setActiveScaffoldId] = useState(null);
+    const [activeScaffoldId, setActiveScaffoldId] = useState(null);
+
     const handleSend = async () => {
         if (!input.trim()) return;
         await sendMessage(input);
@@ -32,7 +28,6 @@ const [activeScaffoldId, setActiveScaffoldId] = useState(null);
             />
             <button onClick={handleSend} disabled={isGenerating}>Send</button>
 
-            {/* The Stop Button triggers if the model is processing */}
             {isGenerating && (
                 <button onClick={stop} style={{ backgroundColor: 'red', color: 'white', marginLeft: '10px' }}>
                     Stop Generating
@@ -41,10 +36,6 @@ const [activeScaffoldId, setActiveScaffoldId] = useState(null);
         </div>
     );
 };
-
-
-
-
 
 function App() {
   // --- Sidebar & General State ---
@@ -59,10 +50,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [scaffoldData, setScaffoldData] = useState(null);
   const [scaffoldId, setScaffoldId] = useState(null); 
-  const [activeTab, setActiveTab] = useState('specs'); // Tabs for the right-side panels
+  const [activeTab, setActiveTab] = useState('specs');
 
   // --- Opportunity Persona State ---
-  const [oppInputMode, setOppInputMode] = useState('prompt'); // 'prompt' or 'form'
+  const [oppInputMode, setOppInputMode] = useState('prompt');
   const [personaForm, setPersonaForm] = useState({
     role: '',
     skills: '',
@@ -76,7 +67,7 @@ function App() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
 
-  // --- Dynamic UI Theming based on active data or selected mode ---
+  // --- Dynamic UI Theming ---
   const activeViewMode = scaffoldData ? scaffoldData.scaffold_type : selectedMode;
   const isOpportunity = activeViewMode === 'OPPORTUNITY';
   
@@ -84,7 +75,8 @@ function App() {
   const accentBadge = isOpportunity ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-indigo-100 text-indigo-800 border-indigo-200';
   const buttonColor = isOpportunity ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700';
 
-const abortControllerRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
   // --- Lifecycle Hooks ---
   useEffect(() => {
     fetchHistoryList();
@@ -120,7 +112,7 @@ const abortControllerRef = useRef(null);
         setScaffoldId(savedScaffoldId);
         setScaffoldData(dataJson.data);
         setChatHistory(historyJson.messages);
-        setActiveTab('specs'); // Reset tabs on load
+        setActiveTab('specs');
         if (window.innerWidth < 1024) setIsSidebarOpen(false);
       }
     } catch (err) {
@@ -130,21 +122,11 @@ const abortControllerRef = useRef(null);
     }
   };
 
-
-// Create the stop function
-const handleStopGeneration = () => {
+  const handleStopGeneration = () => {
     if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-        // Assuming you have a setChatLoading(false) to reset your UI
-        // setChatLoading(false); 
     }
-};
-
-
-
-
-
-
+  };
 
   const handleStartFreshWorkspace = () => {
     setScaffoldData(null);
@@ -162,7 +144,6 @@ const handleStopGeneration = () => {
   const handleGenerate = async (e) => {
     e.preventDefault();
 
-    // Construct the final payload based on the selected mode and input method
     let finalPrompt = prompt;
     if (selectedMode === 'OPPORTUNITY' && oppInputMode === 'form') {
       if (!personaForm.role.trim() || !personaForm.skills.trim()) return;
@@ -183,7 +164,6 @@ const handleStopGeneration = () => {
         setScaffoldData(result.data);
         setScaffoldId(result.scaffoldId);
         
-        // Dynamic initial welcome message based on mode
         const welcomeMessage = result.data.scaffold_type === 'OPPORTUNITY' 
           ? `I've initialized your Opportunity Workspace for "${result.data.title}". Let me know if you want to refine your pitch or breakdown any specific criteria.`
           : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
@@ -201,7 +181,7 @@ const handleStopGeneration = () => {
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!chatMessage.trim() || !scaffoldId) return;
-abortControllerRef.current = new AbortController();
+    abortControllerRef.current = new AbortController();
     const newUserMsg = { role: 'user', message_text: chatMessage };
     setChatHistory(prev => [...prev, newUserMsg]);
     setChatMessage('');
@@ -222,10 +202,8 @@ abortControllerRef.current = new AbortController();
       }
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.log("Chat generation was aborted.");
         setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
       } else {
-        console.error("Chat sync exception:", error);
         setChatHistory(prev => [...prev, { role: 'model', message_text: "⚠️ Connection error. Could not sync updates." }]);
       }
     } finally {
@@ -236,9 +214,7 @@ abortControllerRef.current = new AbortController();
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden">
       
-      {/* =========================================
-          LEFT SIDEBAR: DASHBOARD LOGS
-          ========================================= */}
+      {/* LEFT SIDEBAR */}
       <aside 
         className={`fixed lg:relative top-0 left-0 h-full bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 flex-shrink-0 z-40 transition-transform duration-300 w-72 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:w-0 lg:border-none lg:overflow-hidden'}`}
@@ -248,22 +224,18 @@ abortControllerRef.current = new AbortController();
             <History className="h-4 w-4 text-indigo-400" />
             <span>Workspace Logs</span>
           </div>
-          
           <div className="flex items-center gap-1">
             <button 
               onClick={handleStartFreshWorkspace}
               className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-              title="Start New Session Workspace"
             >
               <PlusCircle className="h-5 w-5" />
             </button>
-            {/* MOBILE CLOSE BUTTON */}
             <button 
               onClick={() => setIsSidebarOpen(false)}
               className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 lg:hidden"
-              title="Close Sidebar"
             >
-              <span className="text-xl leading-none">&times;</span> {/* Or import X from lucide-react */}
+              <span className="text-xl leading-none">&times;</span>
             </button>
           </div>
         </div>
@@ -280,7 +252,7 @@ abortControllerRef.current = new AbortController();
                   key={folder.scaffold_id}
                   onClick={() => {
                     handleLoadStoredWorkspace(folder.scaffold_id);
-                    if (window.innerWidth < 1024) setIsSidebarOpen(false); // Auto-close on mobile after selecting
+                    if (window.innerWidth < 1024) setIsSidebarOpen(false);
                   }}
                   className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1 border text-xs group ${
                     isSelected ? 'bg-slate-800 border-indigo-500 text-white shadow-inner' : 'bg-slate-900/40 border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
@@ -296,20 +268,16 @@ abortControllerRef.current = new AbortController();
           )}
         </div>
       </aside>
-      {/* =========================================
-          MAIN INTERACTIVE WORKSPACE
-          ========================================= */}
+
+      {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        
-        {/* TOP HEADER */}
         <header className={`bg-gradient-to-r flex-shrink-0 ${themeColor} text-white py-5 px-8 shadow-md transition-colors duration-500 flex items-center`}>
-  {/* Always show toggle button on mobile, show on desktop only if closed */}
-  <button 
-    onClick={() => setIsSidebarOpen(true)} 
-    className={`mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors ${isSidebarOpen ? 'hidden lg:hidden' : 'block'}`}
-  >
-    <History className="h-5 w-5" />
-  </button>
+          <button 
+            onClick={() => setIsSidebarOpen(true)} 
+            className={`mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors ${isSidebarOpen ? 'hidden lg:hidden' : 'block'}`}
+          >
+            <History className="h-5 w-5" />
+          </button>
           <div className="flex-1 flex justify-between items-center max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
               <Rocket className="h-6 w-6 text-cyan-400 animate-pulse" />
@@ -323,14 +291,9 @@ abortControllerRef.current = new AbortController();
           </div>
         </header>
 
-        {/* SCROLLABLE MAIN CONTENT */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-slate-50">
-          
-          {/* STATE 1: EMPTY / GENERATION FORM */}
           {!scaffoldData && (
             <div className="max-w-4xl mx-auto space-y-6">
-              
-              {/* Main Mode Toggle Tabs */}
               <div className="flex bg-white p-1 rounded-xl border border-slate-200 mb-6 shadow-sm">
                 <button 
                   onClick={() => setSelectedMode('MICRO_SAAS')}
@@ -346,23 +309,19 @@ abortControllerRef.current = new AbortController();
                 </button>
               </div>
 
-              {/* Hero & Form Block */}
               <section className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm mt-8 text-center">
                 <div className="p-4 bg-slate-100 rounded-full w-fit mx-auto mb-6">
                   <Sparkles className={`h-10 w-10 ${selectedMode === 'OPPORTUNITY' ? 'text-emerald-500' : 'text-indigo-500'}`} />
                 </div>
-                
                 <h2 className="text-2xl font-bold mb-3 text-slate-800">
                   {selectedMode === 'MICRO_SAAS' ? 'Launch a New Technical Strategy' : 'Discover Tailored Opportunities'}
                 </h2>
-                
                 <p className="text-sm text-slate-500 mb-8 leading-relaxed max-w-2xl mx-auto">
                   {selectedMode === 'MICRO_SAAS' 
                     ? 'Input a raw software architecture vision or business logic to generate your complete backend and structural workspace.' 
                     : 'Provide your profile or prompt to discover tailored educational grants, hackathons, technical fellowships, and funding programs.'}
                 </p>
 
-                {/* Sub-toggle: Freeform vs Persona Form (Opportunity Mode Only) */}
                 {selectedMode === 'OPPORTUNITY' && (
                   <div className="flex justify-center items-center gap-6 mb-8 p-2 bg-slate-50/80 rounded-lg w-fit mx-auto border border-slate-200 shadow-inner">
                     <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700 px-2 py-1 rounded-md hover:bg-slate-100 transition-colors">
@@ -386,11 +345,8 @@ abortControllerRef.current = new AbortController();
                   </div>
                 )}
 
-                {/* Input Form Submission */}
                 <form onSubmit={handleGenerate} className="space-y-6 max-w-3xl mx-auto">
-                  
                   {selectedMode === 'OPPORTUNITY' && oppInputMode === 'form' ? (
-                    // --- PERSONA BUILDER FORM ---
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left bg-slate-50 p-6 md:p-8 rounded-xl border border-slate-200 shadow-inner">
                       <div className="md:col-span-2">
                         <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Current Role / Status <span className="text-red-500">*</span></label>
@@ -442,7 +398,6 @@ abortControllerRef.current = new AbortController();
                       </div>
                     </div>
                   ) : (
-                    // --- FREEFORM PROMPT TEXTAREA ---
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -453,7 +408,6 @@ abortControllerRef.current = new AbortController();
                       required
                     />
                   )}
-
                   <button
                     type="submit"
                     disabled={loading}
@@ -470,11 +424,8 @@ abortControllerRef.current = new AbortController();
             </div>
           )}
 
-          {/* STATE 2: POPULATED DATA PANELS */}
           {scaffoldData && (
             <div className="space-y-6 max-w-[90rem] mx-auto animate-fadeIn pb-12">
-              
-              {/* Universal Header Block for active data */}
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-start sm:items-center flex-col sm:flex-row gap-6">
                 <div className={`p-4 rounded-full flex-shrink-0 w-fit ${isOpportunity ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
                   <Rocket className="h-8 w-8" />
@@ -485,17 +436,9 @@ abortControllerRef.current = new AbortController();
                 </div>
               </div>
 
-              {/* DYNAMIC CONDITIONAL LAYOUTS */}
               {isOpportunity ? (
-                
-                /* =========================================
-                   LAYOUT A: OPPORTUNITY & GRANT VIEW
-                   ========================================= */
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  
-                  {/* Left Column: Snapshot Table & Requirements */}
                   <div className="lg:col-span-5 space-y-6 flex flex-col">
-                    
                     <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
                         <Landmark className="h-4 w-4 text-emerald-500" /> The Snapshot
@@ -547,7 +490,6 @@ abortControllerRef.current = new AbortController();
                     </div>
                   </div>
 
-                  {/* Right Column: Tabbed Eligibility & Playbook */}
                   <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
                     <div className="flex border-b border-slate-200 bg-slate-50 rounded-t-lg overflow-hidden flex-shrink-0">
                       <button onClick={() => setActiveTab('specs')} className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'specs' ? 'bg-white border-t-2 border-emerald-600 text-slate-900 shadow-sm z-10' : 'text-slate-400 hover:text-slate-600 border-t-2 border-transparent hover:bg-slate-100/50'}`}>
@@ -597,185 +539,105 @@ abortControllerRef.current = new AbortController();
                               </div>
                             ))
                           ) : (
-                            <p className="text-sm text-slate-500 italic text-center py-8">Action playbook not mapped. Ask Copilot to break down the timeline.</p>
+                            <p className="text-sm text-slate-500 italic text-center py-8">Action playbook not mapped. Ask Copilot to generate it.</p>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-
               ) : (
-
-                /* =========================================
-                   LAYOUT B: MICRO SAAS ARCHITECTURE VIEW
-                   ========================================= */
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  
-                  {/* Left Column: Milestones Panel */}
-                  <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-[500px] flex flex-col">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2 flex-shrink-0">
-                      <CheckCircle2 className="h-4 w-4 text-indigo-500" /> Engineering Playbook
+                /* MICRO SAAS VIEW */
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-full">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                      <Code className="h-4 w-4 text-indigo-500" /> Blueprint Specs
                     </h3>
-                    <div className="space-y-3 overflow-y-auto pr-2 flex-1 scroll-smooth">
-                      {scaffoldData.milestone_tasks?.length > 0 ? (
-                        scaffoldData.milestone_tasks.map((task, index) => (
-                          <div key={index} className="p-4 border border-slate-100 rounded-lg bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                                {task.phase_title || `Phase ${task.phase_number}`}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-400 max-w-[150px] truncate" title={task.technical_dependency}>
-                                Dep: {task.technical_dependency}
-                              </span>
-                            </div>
-                            <h4 className="text-sm font-bold text-slate-800">{task.task_name}</h4>
-                            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{task.action_item}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-slate-400 italic">No milestones defined yet.</p>
-                      )}
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                      {scaffoldData.blueprint_specs?.map((spec, i) => (
+                        <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-lg shadow-sm">
+                          <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">{spec.spec_label}</h4>
+                          <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap">
+                            {typeof spec.structured_content === 'object' ? JSON.stringify(spec.structured_content, null, 2) : spec.structured_content}
+                          </pre>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Right Column: Tabbed Specs & Risks Panel */}
-                  <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[500px]">
-                    <div className="flex border-b border-slate-200 bg-slate-50 rounded-t-lg overflow-hidden flex-shrink-0">
-                      <button onClick={() => setActiveTab('specs')} className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'specs' ? 'bg-white border-t-2 border-indigo-600 text-slate-900 shadow-sm z-10' : 'text-slate-400 hover:text-slate-600 border-t-2 border-transparent hover:bg-slate-100/50'}`}>
-                        <FileText className="h-4 w-4" /> Core Blueprints
-                      </button>
-                      <button onClick={() => setActiveTab('risks')} className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${activeTab === 'risks' ? 'bg-white border-t-2 border-red-500 text-slate-900 shadow-sm z-10' : 'text-slate-400 hover:text-slate-600 border-t-2 border-transparent hover:bg-slate-100/50'}`}>
-                        <ShieldAlert className="h-4 w-4" /> Mitigation Risks
-                      </button>
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-full">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-amber-500" /> Structural Risks
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                      {scaffoldData.structural_risks?.map((risk, i) => (
+                        <div key={i} className="p-3 bg-amber-50 border border-amber-100 rounded-lg shadow-sm">
+                          <h4 className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">{risk.risk_title}</h4>
+                          <p className="text-xs text-slate-700 mt-1">{risk.risk_description}</p>
+                        </div>
+                      ))}
                     </div>
-                    
-                    <div className="p-5 flex-1 overflow-y-auto bg-slate-50/50">
-                      {activeTab === 'specs' ? (
-                        <div className="space-y-6">
-                          {scaffoldData.blueprint_specs?.length > 0 ? (
-                            scaffoldData.blueprint_specs.map((spec, idx) => (
-                              <div key={idx} className="space-y-2">
-                                <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-indigo-500"></span> {spec.spec_label}
-                                </h4>
-                                <pre className="text-xs bg-slate-900 text-green-400 p-4 rounded-xl overflow-x-auto font-mono leading-relaxed shadow-inner">
-                                  {spec.structured_content}
-                                </pre>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-slate-500 italic text-center py-8">Technical specs not generated. Check prompt detail.</p>
-                          )}
+                  </div>
+
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col h-full">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-500" /> Milestone Tasks
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                      {scaffoldData.milestone_tasks?.map((task, i) => (
+                        <div key={i} className="p-3 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
+                          <h4 className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">{task.phase_title}</h4>
+                          <p className="text-xs text-slate-700 mt-1">{task.action_item}</p>
                         </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {scaffoldData.structural_risks?.length > 0 ? (
-                            scaffoldData.structural_risks.map((risk, idx) => (
-                              <div key={idx} className="p-4 border border-red-200 rounded-xl bg-red-50 shadow-sm">
-                                <h4 className="text-sm font-bold text-red-900 flex items-center gap-2">
-                                  <ShieldAlert className="h-4 w-4 text-red-600" /> {risk.risk_title}
-                                </h4>
-                                <p className="text-sm text-slate-700 mt-2 leading-relaxed">{risk.risk_description}</p>
-                                <div className="mt-3 text-xs bg-white border border-red-100 p-3 rounded-lg text-slate-800 font-medium shadow-sm">
-                                  <span className="text-red-600 font-bold uppercase tracking-wide">Mitigation:</span> {risk.mitigation_protocol}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-slate-500 italic text-center py-8">No structural risks detected.</p>
-                          )}
-                        </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* =========================================
-                  UNIVERSAL CHAT COPILOT
-                  ========================================= */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                
-                <div className={`p-4 border-b border-slate-200 flex items-center gap-2 ${isOpportunity ? 'bg-emerald-50/80' : 'bg-indigo-50/80'}`}>
-                  <MessageSquare className={`h-5 w-5 ${isOpportunity ? 'text-emerald-600' : 'text-indigo-600'}`} />
-                  <h3 className="font-bold text-slate-800 text-sm">Scaffold Copilot Sync</h3>
-                  <span className="ml-auto text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                    </span>
-                    Engine Live
-                  </span>
+              {/* CHAT COPILOT SECTION */}
+              <div className="mt-8 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-[400px]">
+                <div className="p-4 border-b border-slate-100 bg-slate-50 rounded-t-xl flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-indigo-500" />
+                  <h3 className="font-bold text-slate-800 text-sm">Copilot Workspace</h3>
                 </div>
                 
-                <div className="p-6 h-[320px] overflow-y-auto space-y-4 bg-slate-50/50 scroll-smooth">
-                  {chatHistory.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-slate-400 text-sm italic">
-                      Start typing to modify your workspace data...
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {chatHistory.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                        {msg.message_text}
+                      </div>
                     </div>
-                  ) : (
-                    chatHistory.map((msg, idx) => (
-                      <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-slate-200 text-slate-600' : (isOpportunity ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white')}`}>
-                          {msg.role === 'user' ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                        </div>
-                        <div className={`max-w-[80%] p-3.5 text-sm rounded-2xl leading-relaxed ${msg.role === 'user' ? 'bg-slate-900 text-white rounded-tr-none shadow-md' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm'}`}>
-                          {msg.message_text}
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  ))}
                   {chatLoading && (
-                    <div className="flex gap-3">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${isOpportunity ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'}`}>
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <div className="p-4 bg-white border border-slate-200 rounded-2xl rounded-tl-none shadow-sm flex gap-1.5 items-center">
-                        <div className="h-2 w-2 bg-slate-300 rounded-full animate-bounce"></div>
-                        <div className="h-2 w-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                        <div className="h-2 w-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                    <div className="flex justify-start">
+                      <div className="bg-slate-100 text-slate-500 p-3 rounded-xl text-sm flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Thinking...
                       </div>
                     </div>
                   )}
                   <div ref={chatEndRef} />
                 </div>
 
-                <form onSubmit={handleChatSubmit} className="p-4 bg-white border-t border-slate-200 flex gap-3">
+                <form onSubmit={handleChatSubmit} className="p-3 border-t border-slate-100 flex gap-2">
                   <input
-    type="text"
-    value={chatMessage}
-    onChange={(e) => setChatMessage(e.target.value)}
-    placeholder={isOpportunity ? "Ask for essay tips, recommender strategies..." : "Modify database tables..."}
-    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
-    disabled={chatLoading}
-  />
-
-{!chatLoading ? (
-<button
-      type="submit"
-      disabled={!chatMessage.trim()}
-      className={`px-5 py-3 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-md ${buttonColor}`}
-    >
-      <Send className="h-4 w-4" />
-    </button>
-
-):(
-
-
-  <button
-      type="button" // Important: type="button" prevents it from submitting the form
-      onClick={handleStopGeneration}
-      className="px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-md"
-    >
-      {/* If you have a Square or Stop/X icon from lucide-react, use it here instead of Send! */}
-      <span>Stop</span> 
-    </button>
-
-
-)}
-
-
+                    type="text"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder="Ask Copilot to modify the architecture or expand on a step..."
+                    className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={chatLoading}
+                  />
+                  {chatLoading ? (
+                    <button type="button" onClick={handleStopGeneration} className="p-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                      <ShieldAlert className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={!chatMessage.trim()} className="p-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                      <Send className="h-5 w-5" />
+                    </button>
+                  )}
                 </form>
               </div>
 
