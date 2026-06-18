@@ -4,5 +4,7 @@
       "source": "/api/:path*",
       "destination": "https://relayai-usaii.onrender.com/api/:path*"
     }
-  ]
+  ],
+  "outputDirectory": "dist"
 }
+
