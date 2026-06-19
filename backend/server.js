@@ -375,6 +375,7 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
         1. Set the specific JSON field 'scaffold_type' to exactly: "${selectedMode}".
         2. If mode is 'MICRO_SAAS', act as a Principal Systems Architect. Give seven days executable plan. Fully populate: structural_risks, blueprint_specs, and milestone_tasks arrays. Leave all Opportunity fields empty/null.
         3. If mode is 'OPPORTUNITY', act as a Strategic Navigator for grants and hackathons. Give seven days executable plan. Fully populate: provider, funding_amount, deadline, target_audience, effort_level, core_requirements, eligibility_blueprint, and action_playbook. Leave Micro SaaS arrays empty/null.
+        4.Give most current and most updated information. 
         
         Output ONLY raw valid JSON matching the schema.
         `;
