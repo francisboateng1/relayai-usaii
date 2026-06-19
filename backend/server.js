@@ -14,7 +14,7 @@ app.use(cors({
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID']
 }));
-app.options(/.*/, cors()); // Pre-flight check handler
+app.options('*', cors()); // Pre-flight check handler
 
 const PORT = process.env.PORT || 5000;
 app.use(express.json());
@@ -653,7 +653,7 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-app.get('/.*/', (req, res) => {
+app.get('*', (req, res) => {
     res.status(200).json({ 
         status: "success",
         message: "Relay AI Backend is live and routing traffic!" 
