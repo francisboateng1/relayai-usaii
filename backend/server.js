@@ -10,10 +10,11 @@ const app = express();
 
 app.use(cors({
     origin: 'https://relayai-usaii.vercel.app', // Adjust this if your frontend runs on a different origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID']
 }));
+app.options('*', cors()); // Pre-flight check handler
 
 const PORT = process.env.PORT || 5000;
 app.use(express.json());
@@ -163,13 +164,16 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
     let lastError = null;
 
     for (const modelName of modelCascade) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000);
         try {
             console.log(`[AI CASCADE] Attempting generation with Model: ${modelName}`);
             
             const config = {
                 systemInstruction: systemInstruction,
                 responseMimeType: "application/json",
-                temperature: temperature
+                temperature: temperature,
+                abortSignal: controller.signal
             };
 
             if (signal) config.abortSignal = signal;
@@ -182,10 +186,13 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
             });
 
             console.log(`[AI CASCADE] Success using resource node: ${modelName}`);
+            // ✅ SUCCESS: Clear the timeout so it doesn't keep running in the background
+            clearTimeout(timeout);
             return response;
             
 
         } catch (error) {
+            clearTimeout(timeout);
             // SAFELY CHECK FOR USER ABORT (Do not fallback if user explicitly cancelled the route)
             if (error.name === 'AbortError' || (signal && signal.aborted)) {
                 console.warn(`[AI CASCADE] Generation manually aborted by user.`);
@@ -372,6 +379,7 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
 
         console.log("[CHECKPOINT 4] Database connected! Starting transaction...");
 
+        
         try {
             await connection.beginTransaction();
 
