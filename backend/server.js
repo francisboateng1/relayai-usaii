@@ -125,7 +125,14 @@ const chatResponseSchema = {
 // AUTOMATED MODEL FALLBACK ENGINE
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
-    const modelCascade = ['gemini-3.5-flash', 'gemini-3.1-flash', 'gemini-2.5-flash'];
+    const modelCascade = [
+    'gemini-3.5-flash',      // The current default: highest intelligence at high speed
+    'gemini-3-flash',        // Strong, fast fallback 
+    'gemini-2.5-flash',      // Highly stable, production-tested fallback
+    'gemini-3.1-flash-lite'  // Absolute fastest option for high-volume requests
+];
+
+
     let lastError = null;
 
     for (const modelName of modelCascade) {
