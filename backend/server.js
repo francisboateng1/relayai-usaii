@@ -14,6 +14,7 @@ app.use(cors({
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID']
 }));
+app.options(/.*/, cors()); // Pre-flight check handler
 
 const PORT = process.env.PORT || 5000;
 app.use(express.json());
