@@ -8,18 +8,14 @@ dotenv.config();
 
 const app = express();
 
-
-app.use(cors( {
-origin: 'https://relayai-usaii.vercel.app', // Adjust this if your frontend runs on a different origin
-methods: ['GET', 'POST', 'PUT', 'DELETE'],
-credentials: true,
-allowedHeaders: ['Content-Type', 'Authorization']
-
+app.use(cors({
+    origin: 'https://relayai-usaii.vercel.app', // Adjust this if your frontend runs on a different origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-
 const PORT = process.env.PORT || 5000;
-
 app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -120,18 +116,16 @@ const chatResponseSchema = {
     required: ["chat_reply", "updated_scaffold_data"]
 };
 
-
 // -------------------------------------------------------------------------
-// AUTOMATED MODEL FALLBACK ENGINE
+// AUTOMATED MODEL FALLBACK ENGINE (REPAIRED)
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
-   // ONLY use these strings
-const modelCascade = [
-    'gemini-2.0-flash',      // The current industry standard for speed & performance
-    'gemini-2.0-flash-lite', // Extremely reliable, high-volume, low-latency
-    'gemini-1.5-flash-002'   // The absolute final stable version of the 1.5 line
-];
-
+    // Current stable production strings for Google AI Studio
+    const modelCascade = [
+        'gemini-2.5-flash',     // Primary production model
+        'gemini-2.0-flash',     // Resilient high-speed fallback
+        'gemini-1.5-flash'      // Ultimate baseline fallback
+    ];
     let lastError = null;
 
     for (const modelName of modelCascade) {
@@ -144,7 +138,6 @@ const modelCascade = [
                 temperature: temperature
             };
 
-            // INJECT THE ABORT SIGNAL SAFELY
             if (signal) config.abortSignal = signal;
             if (responseSchema) config.responseSchema = responseSchema;
 
@@ -158,7 +151,7 @@ const modelCascade = [
             return response;
 
         } catch (error) {
-            // SAFELY CHECK FOR USER ABORT
+            // SAFELY CHECK FOR USER ABORT (Do not fallback if user explicitly cancelled the route)
             if (error.name === 'AbortError' || (signal && signal.aborted)) {
                 console.warn(`[AI CASCADE] Generation manually aborted by user.`);
                 throw error; 
@@ -167,14 +160,13 @@ const modelCascade = [
             lastError = error;
             const statusCode = error.status || (error.error && error.error.code);
             
-            if (statusCode === 503 || statusCode === 429 || String(error.message).includes('demand') || String(error.message).includes('UNAVAILABLE')) {
-                console.warn(`[AI CASCADE WARNING] ${modelName} returned status ${statusCode || 'Transient Error'}. Switching to fallback...`);
-                continue; 
-            }
-            console.error(`[AI CASCADE CRITICAL] Non-transient error caught on ${modelName}. Aborting.`);
-            throw error;
+            // Log the individual node warning and automatically jump to the next loop iteration
+            console.warn(`[AI CASCADE WARNING] ${modelName} failed with status [${statusCode || 'ERR'}]: ${error.message}. Shifting to next node...`);
+            continue;
         }
     }
+    
+    // This point is only hit if every single model in the cascade failed
     throw new Error(`All models in cascade failed. Underlying issue: ${lastError?.message || lastError}`);
 }
 
@@ -183,7 +175,6 @@ const modelCascade = [
 // -------------------------------------------------------------------------
 async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedData) {
     if (type === 'OPPORTUNITY') {
-        // 1. Map single values to specs
         const metaFields = ['provider', 'funding_amount', 'deadline', 'target_audience', 'effort_level'];
         for (const field of metaFields) {
             if (generatedData[field]) {
@@ -194,7 +185,6 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
             }
         }
         
-        // 2. Map core requirements array to specs
         if (Array.isArray(generatedData.core_requirements)) {
             for (const req of generatedData.core_requirements) {
                 await connection.query(
@@ -204,7 +194,6 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
             }
         }
         
-        // 3. Map eligibility array to structural_risks columns
         if (Array.isArray(generatedData.eligibility_blueprint)) {
             for (const criterion of generatedData.eligibility_blueprint) {
                 await connection.query(
@@ -214,7 +203,6 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
             }
         }
         
-        // 4. Map playbook array to milestone_tasks columns
         if (Array.isArray(generatedData.action_playbook)) {
             for (let i = 0; i < generatedData.action_playbook.length; i++) {
                 const step = generatedData.action_playbook[i];
@@ -225,7 +213,6 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
             }
         }
     } else {
-        // --- Standard Micro SaaS mapping ---
         if (Array.isArray(generatedData.structural_risks)) {
             for (const risk of generatedData.structural_risks) {
                 await connection.query(
@@ -283,7 +270,6 @@ app.get('/api/conversations/:scaffoldId/history', async (req, res) => {
 // GENERATE ROUTE (Initial creation)
 // -------------------------------------------------------------------------
 app.post('/api/generate', async (req, res) => {
-    // Correctly parses whichever mode your frontend passes
     const { userPrompt, category, mode } = req.body;
     const selectedMode = mode || category || "MICRO_SAAS";
 
@@ -298,8 +284,8 @@ app.post('/api/generate', async (req, res) => {
         
         CRITICAL RULES:
         1. Set the specific JSON field 'scaffold_type' to exactly: "${selectedMode}".
-        2. If mode is 'MICRO_SAAS', act as a Principal Systems Architect. Give  seven days executable plan. Fully populate: structural_risks, blueprint_specs, and milestone_tasks arrays. Leave all Opportunity fields empty/null.
-        3. If mode is 'OPPORTUNITY', act as a Strategic Navigator for grants and hackathons. Give  seven days executable plan. Fully populate: provider, funding_amount, deadline, target_audience, effort_level, core_requirements, eligibility_blueprint, and action_playbook. Leave Micro SaaS arrays empty/null.
+        2. If mode is 'MICRO_SAAS', act as a Principal Systems Architect. Give seven days executable plan. Fully populate: structural_risks, blueprint_specs, and milestone_tasks arrays. Leave all Opportunity fields empty/null.
+        3. If mode is 'OPPORTUNITY', act as a Strategic Navigator for grants and hackathons. Give seven days executable plan. Fully populate: provider, funding_amount, deadline, target_audience, effort_level, core_requirements, eligibility_blueprint, and action_playbook. Leave Micro SaaS arrays empty/null.
         
         Output ONLY raw valid JSON matching the schema.
         `;
@@ -324,7 +310,6 @@ app.post('/api/generate', async (req, res) => {
             );
             const scaffoldId = scaffoldResult.insertId;
 
-            // Execute dynamic table translation
             await saveScaffoldDetailsToDb(connection, scaffoldId, generatedData.scaffold_type, generatedData);
 
             const initialBotMessage = generatedData.scaffold_type === 'OPPORTUNITY'
@@ -368,7 +353,6 @@ app.get('/api/scaffolds/:id', async (req, res) => {
         const [tasks] = await db.query('SELECT * FROM milestone_tasks WHERE scaffold_id = ?', [scaffoldId]);
 
         if (scaffold.scaffold_type === 'OPPORTUNITY') {
-            // Reconstruct the flat Opportunity object for the frontend
             const responsePayload = {
                 ...scaffold,
                 provider: '',
@@ -410,7 +394,6 @@ app.get('/api/scaffolds/:id', async (req, res) => {
 
             res.status(200).json({ success: true, data: responsePayload });
         } else {
-            // Standard Micro SaaS output
             const formattedSpecs = specs.map(s => {
                 let parsedContent;
                 try {
@@ -443,24 +426,16 @@ app.post('/api/scaffolds/:id/chat', async (req, res) => {
     const scaffoldId = req.params.id;
     const { userMessage } = req.body;
     
-
     if (!userMessage) return res.status(400).json({ error: "Missing user message content." });
 
-    // 1. INITIALIZE ABORT CONTROLLER
     const abortController = new AbortController();
 
-
-
-    // 2. LISTEN FOR CONNECTION DROP
     req.on('close', () => {
-        // If the client disconnects before we finish sending a response, kill the AI request.
         if (!res.writableEnded) {
             console.log('[CLIENT DISCONNECT] Halting Gemini API generation to prevent zombie processes.');
             abortController.abort();
         }
     });
-
-
 
     try {
         const [scaffoldRows] = await db.query('SELECT * FROM scaffolds WHERE id = ?', [scaffoldId]);
@@ -477,7 +452,6 @@ app.post('/api/scaffolds/:id/chat', async (req, res) => {
             scaffold_type: scaffold.scaffold_type
         };
 
-        // Pass accurate UI state back to the model based on type
         if (scaffold.scaffold_type === 'OPPORTUNITY') {
             currentLayoutState.provider = '';
             currentLayoutState.funding_amount = '';
@@ -524,14 +498,12 @@ app.post('/api/scaffolds/:id/chat', async (req, res) => {
             systemInstruction: systemInstruction,
             responseSchema: chatResponseSchema,
             temperature: 0.3,
-            signal: abortController.signal // Pass the abort signal to the generation function to enable cancellation if the client disconnects
+            signal: abortController.signal
         });
-
 
         const dataPackage = JSON.parse(response.text);
         const { chat_reply, updated_scaffold_data } = dataPackage;
 
-        // Force exact type match for DB mapper logic
         updated_scaffold_data.scaffold_type = scaffold.scaffold_type; 
 
         const connection = await db.getConnection();
@@ -541,12 +513,10 @@ app.post('/api/scaffolds/:id/chat', async (req, res) => {
             await connection.query('UPDATE scaffolds SET title = ?, high_level_overview = ? WHERE id = ?', 
                 [updated_scaffold_data.title, updated_scaffold_data.high_level_overview, scaffoldId]);
 
-            // Clean Slate Pattern: Delete older arrays before writing updates
             await connection.query('DELETE FROM milestone_tasks WHERE scaffold_id = ?', [scaffoldId]);
             await connection.query('DELETE FROM blueprint_specs WHERE scaffold_id = ?', [scaffoldId]);
             await connection.query('DELETE FROM structural_risks WHERE scaffold_id = ?', [scaffoldId]);
 
-            // Save new mappings cleanly
             await saveScaffoldDetailsToDb(connection, scaffoldId, scaffold.scaffold_type, updated_scaffold_data);
 
             await connection.query('INSERT INTO scaffold_messages (scaffold_id, role, message_text) VALUES (?, "user", ?)', [scaffoldId, userMessage]);
@@ -563,10 +533,7 @@ app.post('/api/scaffolds/:id/chat', async (req, res) => {
         }
 
     } catch (error) {
-
-        // 4. HANDLE ABORT GRACEFULLY
         if (error.name === 'AbortError' || abortController.signal.aborted) {
-            // The client already left; attempting to send res.status() will crash Express.
             return; 
         }
 
@@ -584,8 +551,6 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-
-// 🩺 Health Check Route
 app.get('/', (req, res) => {
     res.status(200).json({ 
         status: "success",
