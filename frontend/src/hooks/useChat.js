@@ -1,8 +1,6 @@
 // /client/src/hooks/useChat.js
 import { useState, useRef } from 'react';
-import API from '../api/client'; // Import your custom Axios client
-import axios from 'axios'; // 👈 1. Make sure the core axios module is imported
-
+import API from '../api/client'; // Your custom Axios client
 
 export const useChat = (scaffoldId) => {
     const [isGenerating, setIsGenerating] = useState(false);
@@ -13,19 +11,18 @@ export const useChat = (scaffoldId) => {
         setIsGenerating(true);
 
         try {
-            // Replaced fetch with custom instance config
             const response = await API.post(`/api/scaffolds/${scaffoldId}/chat`, 
                 { userMessage },
                 { signal: abortControllerRef.current.signal }
             );
 
-            // Axios puts your backend's parsed JSON output inside '.data'
             return response.data;
         } catch (err) {
-            if (API.isCancel(err) || err.name === 'CanceledError') {
-                console.log("User aborted");
+            // ✅ FIX: Removed all .isCancel() checks. Using strict native error codes.
+            if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+                console.log("Network request gracefully aborted.");
             } else {
-                throw err;
+                throw err; // Only throw if it's a legitimate backend or network failure
             }
         } finally {
             setIsGenerating(false);
