@@ -320,6 +320,9 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
     }
 
     try {
+        
+
+
         const systemInstruction = `
         You are the Universal Zero-to-One Scaffold Engine.
         The user has explicitly selected the workspace mode: ${selectedMode}.
@@ -332,6 +335,8 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
         Output ONLY raw valid JSON matching the schema.
         `;
 
+        console.log("[CHECKPOINT 1] Request received. Calling  API...");
+
         const response = await generateWithFallback({
             contents: userPrompt,
             systemInstruction: systemInstruction,
@@ -339,10 +344,17 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
             temperature: 0.25
         });
 
+        console.log("[CHECKPOINT 2]  API responded successfully!");
+
         const generatedData = JSON.parse(response.text);
         console.log(`[AI ENGINE] Extracted structured ${generatedData.scaffold_type} payload.`);
 
+        console.log("[CHECKPOINT 3] Attempting to connect to MySQL Database...");
+
         const connection = await db.getConnection();
+
+        console.log("[CHECKPOINT 4] Database connected! Starting transaction...");
+        
         try {
             await connection.beginTransaction();
 
