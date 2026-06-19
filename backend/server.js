@@ -307,9 +307,16 @@ app.get('/api/conversations/:scaffoldId/history', tenantGuard, async (req, res) 
 app.post('/api/generate', tenantGuard, async (req, res) => {
     const { userPrompt, category, mode } = req.body;
     const selectedMode = mode || category || "MICRO_SAAS";
+    const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
+
+
 
     if (!userPrompt) {
         return res.status(400).json({ error: "Missing prompt query parameter." });
+    }
+
+    if (!tenantId) {
+        return res.status(400).json({ error: "Missing identity isolation context identifier." });
     }
 
     try {
@@ -340,7 +347,7 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
             await connection.beginTransaction();
 
             const [scaffoldResult] = await connection.query(
-                `INSERT INTO scaffolds (title, scaffold_type, raw_user_input, high_level_overview) VALUES (?, ?, ?, ?)`,
+                `INSERT INTO scaffolds (tenant_id, title, scaffold_type, raw_user_input, high_level_overview) VALUES (?, ?, ?, ?)`,
                 [generatedData.title, generatedData.scaffold_type, userPrompt, generatedData.high_level_overview]
             );
             const scaffoldId = scaffoldResult.insertId;
