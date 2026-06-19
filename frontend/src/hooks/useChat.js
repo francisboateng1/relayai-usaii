@@ -1,6 +1,8 @@
 // /client/src/hooks/useChat.js
 import { useState, useRef } from 'react';
 import API from '../api/client'; // Import your custom Axios client
+import axios from 'axios'; // 👈 1. Make sure the core axios module is imported
+
 
 export const useChat = (scaffoldId) => {
     const [isGenerating, setIsGenerating] = useState(false);

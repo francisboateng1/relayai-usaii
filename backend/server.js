@@ -280,8 +280,14 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
 // COMPATIBILITY ENDPOINTS
 // -------------------------------------------------------------------------
 app.get('/api/conversations', tenantGuard, async (req, res) => {
+const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
+
     try {
-        const [rows] = await db.query('SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds ORDER BY id DESC');
+        const [rows] = await db.query('SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds WHERE tenant_id = ?  ORDER BY id DESC'
+        [tenantId]
+        );
+
+
         res.status(200).json({ success: true, data: rows });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -354,7 +360,7 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
         const connection = await db.getConnection();
 
         console.log("[CHECKPOINT 4] Database connected! Starting transaction...");
-        
+
         try {
             await connection.beginTransaction();
 
@@ -479,8 +485,11 @@ app.get('/api/scaffolds/:id', tenantGuard, async (req, res) => {
 app.post('/api/scaffolds/:id/chat', tenantGuard, async (req, res) => {
     const scaffoldId = req.params.id;
     const { userMessage } = req.body;
+
+    const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
     
     if (!userMessage) return res.status(400).json({ error: "Missing user message content." });
+    if (!tenantId) return res.status(400).json({ error: "Missing identity isolation context identifier." });
 
     const abortController = new AbortController();
 
@@ -492,7 +501,7 @@ app.post('/api/scaffolds/:id/chat', tenantGuard, async (req, res) => {
     });
 
     try {
-        const [scaffoldRows] = await db.query('SELECT * FROM scaffolds WHERE id = ?', [scaffoldId]);
+        const [scaffoldRows] = await db.query('SELECT * FROM scaffolds WHERE id = ? AND tenant_id = ?', [scaffoldId, tenantId]);
         if (scaffoldRows.length === 0) return res.status(404).json({ error: "Scaffold framework not found." });
         const scaffold = scaffoldRows[0];
 
@@ -564,8 +573,8 @@ app.post('/api/scaffolds/:id/chat', tenantGuard, async (req, res) => {
         try {
             await connection.beginTransaction();
 
-            await connection.query('UPDATE scaffolds SET title = ?, high_level_overview = ? WHERE id = ?', 
-                [updated_scaffold_data.title, updated_scaffold_data.high_level_overview, scaffoldId]);
+            await connection.query('UPDATE scaffolds SET title = ?, high_level_overview = ? WHERE id = ? AND tenant_id = ?', 
+                [updated_scaffold_data.title, updated_scaffold_data.high_level_overview, scaffoldId, tenantId]);
 
             await connection.query('DELETE FROM milestone_tasks WHERE scaffold_id = ?', [scaffoldId]);
             await connection.query('DELETE FROM blueprint_specs WHERE scaffold_id = ?', [scaffoldId]);
