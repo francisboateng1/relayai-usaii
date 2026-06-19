@@ -1,41 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Rocket, Loader2, CheckCircle2, ShieldAlert, Code, 
-  FileText, Send, User, Sparkles, MessageSquare, 
+  FileText, Send, Sparkles, MessageSquare, 
   History, PlusCircle, Landmark, Award, Calendar, 
   Users, Zap 
 } from 'lucide-react';
-import { useChat } from './hooks/useChat';
-
-const ChatInterface = ({ scaffoldId }) => {
-    const { sendMessage, stop, isGenerating } = useChat(scaffoldId);
-    const [input, setInput] = useState("");
-    const [activeScaffoldId, setActiveScaffoldId] = useState(null);
-
-    const handleSend = async () => {
-        if (!input.trim()) return;
-        await sendMessage(input);
-        setInput("");
-    };
-
-    return (
-        <div className="chat-container" style={{ padding: '20px', border: '1px solid #ccc' }}>
-            <h3>Copilot Chat Workspace</h3>
-            <input 
-                value={input} 
-                onChange={(e) => setInput(e.target.value)} 
-                placeholder="Ask follow up questions..." 
-            />
-            <button onClick={handleSend} disabled={isGenerating}>Send</button>
-
-            {isGenerating && (
-                <button onClick={stop} style={{ backgroundColor: 'red', color: 'white', marginLeft: '10px' }}>
-                    Stop Generating
-                </button>
-            )}
-        </div>
-    );
-};
+import { getOrCreateTenantId } from './utils/tenant';
+import API from './api/client'; // Import your custom Axios client
 
 function App() {
   // --- Sidebar & General State ---
@@ -77,41 +48,45 @@ function App() {
 
   const abortControllerRef = useRef(null);
 
-  // --- Lifecycle Hooks ---
-  useEffect(() => {
-    fetchHistoryList();
-  }, []);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatLoading]);
-
   // --- API Handlers ---
+
   const fetchHistoryList = async () => {
     try {
-      const response = await fetch('https://relayai-usaii.vercel.app/api/conversations');
-      const resData = await response.json();
-      if (resData.success) {
-        setHistoryList(resData.data);
+      const response = await API.get('/api/conversations');
+      if (response.data.success) {
+        setHistoryList(response.data.data);
       }
     } catch (err) {
       console.error("Error fetching history:", err);
     }
   };
 
+  // --- Lifecycle Hooks & Initial Data Fetching ---
+  useEffect(() => {
+    const loadWorkspace = async () => {
+      const identity = getOrCreateTenantId();
+      console.log(`[System] Initialized workspace environment: ${identity}`);
+      await fetchHistoryList();
+    };
+    void loadWorkspace();
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
   const handleLoadStoredWorkspace = async (savedScaffoldId) => {
     setLoading(true);
     try {
-      const dataRes = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${savedScaffoldId}`);
-      const dataJson = await dataRes.json();
-      
-      const historyRes = await fetch(`https://relayai-usaii.vercel.app/api/conversations/${savedScaffoldId}/history`);
-      const historyJson = await historyRes.json();
+      const [dataRes, historyRes] = await Promise.all([
+        API.get(`/api/scaffolds/${savedScaffoldId}`),
+        API.get(`/api/conversations/${savedScaffoldId}/history`)
+      ]);
 
-      if (dataJson.success && historyJson.success) {
+      if (dataRes.data.success && historyRes.data.success) {
         setScaffoldId(savedScaffoldId);
-        setScaffoldData(dataJson.data);
-        setChatHistory(historyJson.messages);
+        setScaffoldData(dataRes.data.data);
+        setChatHistory(historyRes.data.messages);
         setActiveTab('specs');
         if (window.innerWidth < 1024) setIsSidebarOpen(false);
       }
@@ -119,6 +94,78 @@ function App() {
       console.error("Error loading workspace:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+
+    let finalPrompt = prompt;
+    if (selectedMode === 'OPPORTUNITY' && oppInputMode === 'form') {
+      if (!personaForm.role.trim() || !personaForm.skills.trim()) return;
+      finalPrompt = `Find tailored opportunities for the following persona:\nRole/Status: ${personaForm.role}\nTechnical Skills: ${personaForm.skills}\nInterests: ${personaForm.interests}\nExperience Level: ${personaForm.experience}`;
+    } else {
+      if (!prompt.trim()) return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await API.post('/api/generate', { 
+        userPrompt: finalPrompt, 
+        mode: selectedMode 
+      });
+      
+      const result = response.data;
+      
+      if (result.success) {
+        setScaffoldData(result.data);
+        setScaffoldId(result.scaffoldId);
+        
+        const welcomeMessage = result.data.scaffold_type === 'OPPORTUNITY' 
+          ? `I've initialized your Opportunity Workspace for "${result.data.title}". Let me know if you want to refine your pitch or breakdown any specific criteria.`
+          : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
+          
+        setChatHistory([{ role: 'model', message_text: welcomeMessage }]);
+        fetchHistoryList(); 
+      }
+    } catch (error) {
+      console.error("Generation logic failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim() || !scaffoldId) return;
+    
+    abortControllerRef.current = new AbortController();
+    const newUserMsg = { role: 'user', message_text: chatMessage };
+    
+    setChatHistory(prev => [...prev, newUserMsg]);
+    setChatMessage('');
+    setChatLoading(true);
+
+    try {
+      const response = await API.post(`/api/scaffolds/${scaffoldId}/chat`, 
+        { userMessage: newUserMsg.message_text },
+        { signal: abortControllerRef.current.signal } 
+      );
+      
+      const result = response.data;
+      
+      if (result.success) {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: result.reply }]);
+        setScaffoldData(result.updatedData);
+      }
+    } catch (error) {
+      if (API.isCancel(error) || error.name === 'CanceledError') {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
+      } else {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: "⚠️ Connection error. Could not sync updates." }]);
+      }
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -141,76 +188,10 @@ function App() {
     setPersonaForm({ ...personaForm, [e.target.name]: e.target.value });
   };
 
-  const handleGenerate = async (e) => {
-    e.preventDefault();
 
-    let finalPrompt = prompt;
-    if (selectedMode === 'OPPORTUNITY' && oppInputMode === 'form') {
-      if (!personaForm.role.trim() || !personaForm.skills.trim()) return;
-      finalPrompt = `Find tailored opportunities for the following persona:\nRole/Status: ${personaForm.role}\nTechnical Skills: ${personaForm.skills}\nInterests: ${personaForm.interests}\nExperience Level: ${personaForm.experience}`;
-    } else {
-      if (!prompt.trim()) return;
-    }
 
-    setLoading(true);
-    try {
-      const response = await fetch('https://relayai-usaii.vercel.app/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userPrompt: finalPrompt, mode: selectedMode })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setScaffoldData(result.data);
-        setScaffoldId(result.scaffoldId);
-        
-        const welcomeMessage = result.data.scaffold_type === 'OPPORTUNITY' 
-          ? `I've initialized your Opportunity Workspace for "${result.data.title}". Let me know if you want to refine your pitch or breakdown any specific criteria.`
-          : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
-          
-        setChatHistory([{ role: 'model', message_text: welcomeMessage }]);
-        fetchHistoryList();
-      }
-    } catch (error) {
-      console.error("Generation logic failed:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleChatSubmit = async (e) => {
-    e.preventDefault();
-    if (!chatMessage.trim() || !scaffoldId) return;
-    abortControllerRef.current = new AbortController();
-    const newUserMsg = { role: 'user', message_text: chatMessage };
-    setChatHistory(prev => [...prev, newUserMsg]);
-    setChatMessage('');
-    setChatLoading(true);
-
-    try {
-      const response = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${scaffoldId}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: newUserMsg.message_text }),
-        signal: abortControllerRef.current.signal
-      });
-      const result = await response.json();
-      
-      if (result.success) {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: result.reply }]);
-        setScaffoldData(result.updatedData);
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
-      } else {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: "⚠️ Connection error. Could not sync updates." }]);
-      }
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
+  
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans antialiased overflow-hidden">
       

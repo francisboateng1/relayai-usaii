@@ -1,5 +1,6 @@
 // /client/src/hooks/useChat.js
 import { useState, useRef } from 'react';
+import API from '../api/client'; // Import your custom Axios client
 
 export const useChat = (scaffoldId) => {
     const [isGenerating, setIsGenerating] = useState(false);
@@ -10,19 +11,20 @@ export const useChat = (scaffoldId) => {
         setIsGenerating(true);
 
         try {
-            const response = await fetch(`/api/scaffolds/${scaffoldId}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userMessage }),
-                signal: abortControllerRef.current.signal
-            });
+            // Replaced fetch with custom instance config
+            const response = await API.post(`/api/scaffolds/${scaffoldId}/chat`, 
+                { userMessage },
+                { signal: abortControllerRef.current.signal }
+            );
 
-            if (!response.ok) throw new Error("Request failed");
-            const data = await response.json();
-            return data;
+            // Axios puts your backend's parsed JSON output inside '.data'
+            return response.data;
         } catch (err) {
-            if (err.name === 'AbortError') console.log("User aborted");
-            throw err;
+            if (API.isCancel(err) || err.name === 'CanceledError') {
+                console.log("User aborted");
+            } else {
+                throw err;
+            }
         } finally {
             setIsGenerating(false);
         }
