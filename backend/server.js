@@ -151,23 +151,31 @@ function extractSafeJSON(rawText) {
 
 
 
-
 // -------------------------------------------------------------------------
-// AUTOMATED MODEL FALLBACK ENGINE (REPAIRED)
+// AUTOMATED MODEL FALLBACK ENGINE (9-TIER + 404 INTERCEPTOR)
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
-    // Current stable production strings for Google AI Studio
+    // 9-Tier Cascade Matrix: The absolute maximum coverage available
     const modelCascade = [
-        'gemini-2.5-flash',     // Primary production model
-        'gemini-2.0-flash'     // Resilient high-speed fallback
+        'gemini-2.5-flash',       // Tier 1: Primary high-speed production model
+        'gemini-2.0-flash',       // Tier 2: Immediate resilient fallback
+        'gemini-2.0-flash-lite',  // Tier 3: Ultra-fast, lightweight fallback
+        'gemini-1.5-flash',       // Tier 4: Standard legacy safety net
+        'gemini-1.5-flash-8b',    // Tier 5: Extreme low-latency edge case
+        'gemini-2.5-pro',         // Tier 6: Heavy-duty intelligence fallback
+        'gemini-2.0-pro-exp',     // Tier 7: Experimental Pro fallback
+        'gemini-1.5-pro',         // Tier 8: Legacy heavy-duty safety net
+        'gemini-1.0-pro'          // Tier 9: The absolute last resort (Oldest legacy)
     ];
+    
     let lastError = null;
 
     for (const modelName of modelCascade) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60000);
+        const timeout = setTimeout(() => controller.abort(), 60000); // 60s max per attempt
+        
         try {
-            console.log(`[AI CASCADE] Attempting generation with Model: ${modelName}`);
+            console.log(`[AI CASCADE] Attempting generation with Node: ${modelName}`);
             
             const config = {
                 systemInstruction: systemInstruction,
@@ -186,42 +194,51 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
             });
 
             console.log(`[AI CASCADE] Success using resource node: ${modelName}`);
-            // ✅ SUCCESS: Clear the timeout so it doesn't keep running in the background
+            
+            // ✅ SUCCESS: Clear the timeout to prevent memory leaks
             clearTimeout(timeout);
             return response;
-            
 
         } catch (error) {
+            // ✅ CLEANUP: Always clear timeout on error
             clearTimeout(timeout);
-            // SAFELY CHECK FOR USER ABORT (Do not fallback if user explicitly cancelled the route)
+            
+            // SAFELY CHECK FOR USER ABORT
             if (error.name === 'AbortError' || (signal && signal.aborted)) {
-                console.warn(`[AI CASCADE] Generation manually aborted by user.`);
+                console.warn(`[AI CASCADE] Generation manually aborted by client.`);
                 throw error; 
             }
 
-            
-            const statusCode = error.status || (error.error && error.error.code);
-            
+            // Extract the status code safely from Google's error object
+            const statusCode = error.status || (error.error && error.error.code) || 500;
 
-            if (statusCode === 429) {
-                console.warn(`[RATE LIMIT] Hit limit on ${modelName}. Waiting 8 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 8000));
-                
-                // Retry the SAME model again
-                return await generateWithFallback({ contents, systemInstruction, responseSchema, temperature, signal });
+            // 🔥 INSTANT ROLLOVER TRIGGERS
+            // 429: Rate Limit / Quota Exceeded
+            // 404: Model Not Found / Deprecated
+            // 500/502/503/504: Google Server Outages
+            const instantRolloverCodes = [429, 404, 500, 502, 503, 504];
+
+            if (instantRolloverCodes.includes(statusCode)) {
+                console.warn(`[API TRIGGER] ${modelName} failed with status ${statusCode}. Skipping instantly to next node...`);
+                lastError = error;
+                continue; // Instantly move to the next model
             }
 
+            // For other unexpected errors (e.g., 400 Bad Request due to payload size),
+            // log the warning and still attempt to jump to the next iteration just in case.
+            console.warn(`[AI CASCADE WARNING] ${modelName} failed with unexpected status [${statusCode}]: ${error.message}. Shifting to next node...`);
             lastError = error;
-
-            // Log the individual node warning and automatically jump to the next loop iteration
-            console.warn(`[AI CASCADE WARNING] ${modelName} failed with status [${statusCode || 'ERR'}]: ${error.message}. Shifting to next node...`);
             continue;
         }
     }
     
-    // This point is only hit if every single model in the cascade failed
-    throw new Error(`All models in cascade failed. Underlying issue: ${lastError?.message || lastError}`);
+    // This point is only hit if every single model in the 9-tier cascade failed
+    throw new Error(`CRITICAL SYSTEM FAILURE: All 9 models in cascade exhausted. Underlying issue: ${lastError?.message || lastError}`);
 }
+
+
+
+
 
 // -------------------------------------------------------------------------
 // DATABASE MAPPER (Translates objects into existing SQL Columns natively)
@@ -304,6 +321,13 @@ const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
         const [rows] = await db.query('SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds WHERE tenant_id = ?  ORDER BY id DESC'
         [tenantId]
         );
+
+        const conversations = await db.conversations.findMany({
+            where: {
+                userId: tenantId
+            }
+        });
+        res.json(data);
 
 
         res.status(200).json({ success: true, data: rows });

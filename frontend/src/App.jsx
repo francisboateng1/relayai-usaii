@@ -1,18 +1,57 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Rocket, Loader2, CheckCircle2, ShieldAlert, Code, 
-  FileText, Send, Sparkles, MessageSquare, 
+  FileText, Send, User, Sparkles, MessageSquare, 
   History, PlusCircle, Landmark, Award, Calendar, 
   Users, Zap 
 } from 'lucide-react';
+import { useChat } from './hooks/useChat';
 import { getOrCreateTenantId } from './utils/tenant';
-import API from './api/client'; // Import your custom Axios client
+import API from './api/client'; // Import your new custom Axios client
+import { useOutsideClick } from './path/to/useOutsideClick';
+
+
+
+
+
+
+
+const ChatInterface = ({ scaffoldId }) => {
+    const { sendMessage, stop, isGenerating } = useChat(scaffoldId);
+    const [input, setInput] = useState("");
+    const [activeScaffoldId, setActiveScaffoldId] = useState(null);
+
+    const handleSend = async () => {
+        if (!input.trim()) return;
+        await sendMessage(input);
+        setInput("");
+    };
+
+    return (
+        <div className="chat-container" style={{ padding: '20px', border: '1px solid #ccc' }}>
+            <h3>Copilot Chat Workspace</h3>
+            <input 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                placeholder="Ask follow up questions..." 
+            />
+            <button onClick={handleSend} disabled={isGenerating}>Send</button>
+
+            {isGenerating && (
+                <button onClick={stop} style={{ backgroundColor: 'red', color: 'white', marginLeft: '10px' }}>
+                    Stop Generating
+                </button>
+            )}
+        </div>
+    );
+};
 
 function App() {
   // --- Sidebar & General State ---
   const [historyList, setHistoryList] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+  const sidebarRef = useRef(null);
+
   // Controls the generation form type ('MICRO_SAAS' or 'OPPORTUNITY')
   const [selectedMode, setSelectedMode] = useState('MICRO_SAAS');
 
@@ -47,37 +86,53 @@ function App() {
   const buttonColor = isOpportunity ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700';
 
   const abortControllerRef = useRef(null);
+//the following state is for storing the list of scaffolds fetched from the backend
+  const [scaffolds, setScaffolds] = useState([]);
 
-  // --- API Handlers ---
+// --- Lifecycle Hooks & Initial Data Fetching ---
+  useEffect(() => {
+        // Mint or retrieve the identity immediately when the user lands
+        const identity = getOrCreateTenantId();
+        console.log(`[System] Initialized workspace environment: ${identity}`);
+        
+        // Example: Automatically fetch the user's isolated history on load
+        fetchHistoryList();
+    }, []);
+
+  
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
+ 
+  
+// Connect the hook
+    useOutsideClick(sidebarRef, () => {
+        if (isSidebarOpen) {
+            setIsSidebarOpen(false);
+        }
+    });
+
+
+// --- UPDATED API HANDLERS ---
 
   const fetchHistoryList = async () => {
     try {
+      // Uses the Axios client!
       const response = await API.get('/api/conversations');
       if (response.data.success) {
-        setHistoryList(response.data.data);
+        setHistoryList(response.data.data); // Updating your original state
       }
     } catch (err) {
       console.error("Error fetching history:", err);
     }
   };
 
-  // --- Lifecycle Hooks & Initial Data Fetching ---
-  useEffect(() => {
-    const loadWorkspace = async () => {
-      const identity = getOrCreateTenantId();
-      console.log(`[System] Initialized workspace environment: ${identity}`);
-      await fetchHistoryList();
-    };
-    void loadWorkspace();
-  }, []);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatLoading]);
-
   const handleLoadStoredWorkspace = async (savedScaffoldId) => {
     setLoading(true);
     try {
+      // Concurrent Axios requests
       const [dataRes, historyRes] = await Promise.all([
         API.get(`/api/scaffolds/${savedScaffoldId}`),
         API.get(`/api/conversations/${savedScaffoldId}/history`)
@@ -110,6 +165,7 @@ function App() {
 
     setLoading(true);
     try {
+      // Uses the Axios client!
       const response = await API.post('/api/generate', { 
         userPrompt: finalPrompt, 
         mode: selectedMode 
@@ -126,7 +182,7 @@ function App() {
           : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
           
         setChatHistory([{ role: 'model', message_text: welcomeMessage }]);
-        fetchHistoryList(); 
+        fetchHistoryList(); // Refresh the sidebar
       }
     } catch (error) {
       console.error("Generation logic failed:", error);
@@ -147,6 +203,7 @@ function App() {
     setChatLoading(true);
 
     try {
+      // Axios request with AbortController signal
       const response = await API.post(`/api/scaffolds/${scaffoldId}/chat`, 
         { userMessage: newUserMsg.message_text },
         { signal: abortControllerRef.current.signal } 
@@ -159,6 +216,7 @@ function App() {
         setScaffoldData(result.updatedData);
       }
     } catch (error) {
+      // Axios handles aborts slightly differently in the error object
       if (API.isCancel(error) || error.name === 'CanceledError') {
         setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
       } else {
@@ -168,6 +226,9 @@ function App() {
       setChatLoading(false);
     }
   };
+
+
+
 
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
@@ -188,6 +249,77 @@ function App() {
     setPersonaForm({ ...personaForm, [e.target.name]: e.target.value });
   };
 
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+
+    let finalPrompt = prompt;
+    if (selectedMode === 'OPPORTUNITY' && oppInputMode === 'form') {
+      if (!personaForm.role.trim() || !personaForm.skills.trim()) return;
+      finalPrompt = `Find tailored opportunities for the following persona:\nRole/Status: ${personaForm.role}\nTechnical Skills: ${personaForm.skills}\nInterests: ${personaForm.interests}\nExperience Level: ${personaForm.experience}`;
+    } else {
+      if (!prompt.trim()) return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('https://relayai-usaii.vercel.app/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userPrompt: finalPrompt, mode: selectedMode })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setScaffoldData(result.data);
+        setScaffoldId(result.scaffoldId);
+        
+        const welcomeMessage = result.data.scaffold_type === 'OPPORTUNITY' 
+          ? `I've initialized your Opportunity Workspace for "${result.data.title}". Let me know if you want to refine your pitch or breakdown any specific criteria.`
+          : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
+          
+        setChatHistory([{ role: 'model', message_text: welcomeMessage }]);
+        fetchHistoryList();
+      }
+    } catch (error) {
+      console.error("Generation logic failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim() || !scaffoldId) return;
+    abortControllerRef.current = new AbortController();
+    const newUserMsg = { role: 'user', message_text: chatMessage };
+    setChatHistory(prev => [...prev, newUserMsg]);
+    setChatMessage('');
+    setChatLoading(true);
+
+    try {
+      const response = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${scaffoldId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: newUserMsg.message_text }),
+        signal: abortControllerRef.current.signal
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: result.reply }]);
+        setScaffoldData(result.updatedData);
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
+      } else {
+        setChatHistory(prev => [...prev, { role: 'model', message_text: "⚠️ Connection error. Could not sync updates." }]);
+      }
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+
 
 
 
@@ -197,10 +329,12 @@ function App() {
       
       {/* LEFT SIDEBAR */}
       <aside 
+      ref={sidebarRef}
         className={`fixed lg:relative top-0 left-0 h-full bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 flex-shrink-0 z-40 transition-transform duration-300 w-72 
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:w-0 lg:border-none lg:overflow-hidden'}`}
       >
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between min-w-[18rem]">
+        <div  
+         className="p-4 border-b border-slate-800 flex items-center justify-between min-w-[18rem]">
           <div className="flex items-center gap-2 font-bold tracking-wide text-sm text-white">
             <History className="h-4 w-4 text-indigo-400" />
             <span>Workspace Logs</span>
@@ -254,7 +388,9 @@ function App() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <header className={`bg-gradient-to-r flex-shrink-0 ${themeColor} text-white py-5 px-8 shadow-md transition-colors duration-500 flex items-center`}>
           <button 
-            onClick={() => setIsSidebarOpen(true)} 
+            onClick={(e) =>  { e.stopPropagation(); // <-- This is the magic line
+              setIsSidebarOpen(true);
+            } }
             className={`mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors ${isSidebarOpen ? 'hidden lg:hidden' : 'block'}`}
           >
             <History className="h-5 w-5" />
