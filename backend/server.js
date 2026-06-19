@@ -183,6 +183,7 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
 
             console.log(`[AI CASCADE] Success using resource node: ${modelName}`);
             return response;
+            
 
         } catch (error) {
             // SAFELY CHECK FOR USER ABORT (Do not fallback if user explicitly cancelled the route)
@@ -191,9 +192,20 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
                 throw error; 
             }
 
-            lastError = error;
+            
             const statusCode = error.status || (error.error && error.error.code);
             
+
+            if (statusCode === 429) {
+                console.warn(`[RATE LIMIT] Hit limit on ${modelName}. Waiting 8 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 8000));
+                
+                // Retry the SAME model again
+                return await generateWithFallback({ contents, systemInstruction, responseSchema, temperature, signal });
+            }
+
+            lastError = error;
+
             // Log the individual node warning and automatically jump to the next loop iteration
             console.warn(`[AI CASCADE WARNING] ${modelName} failed with status [${statusCode || 'ERR'}]: ${error.message}. Shifting to next node...`);
             continue;
