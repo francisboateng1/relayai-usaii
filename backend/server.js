@@ -14,7 +14,7 @@ app.use(cors({
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID']
 }));
-app.options('*', cors()); // Pre-flight check handler
+app.options('/*', cors()); // Pre-flight check handler
 
 const PORT = process.env.PORT || 5000;
 app.use(express.json());
@@ -315,21 +315,17 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
 // COMPATIBILITY ENDPOINTS
 // -------------------------------------------------------------------------
 app.get('/api/conversations', tenantGuard, async (req, res) => {
-const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
+    const tenantId = req.tenantId || req.tenant_id || req.headers['x-tenant-id'];
 
     try {
-        const [rows] = await db.query('SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds WHERE tenant_id = ?  ORDER BY id DESC'
-        [tenantId]
+        // FIXED: Added the missing comma before [tenantId]
+        const [rows] = await db.query(
+            'SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds WHERE tenant_id = ? ORDER BY id DESC',
+            [tenantId]
         );
 
-        const conversations = await db.conversations.findMany({
-            where: {
-                userId: tenantId
-            }
-        });
-        res.json(data);
-
-
+        // FIXED: Removed the broken Prisma code and undefined variables.
+        // Returning exactly what the frontend expects.
         res.status(200).json({ success: true, data: rows });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -657,7 +653,7 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => {
+app.get('/*', (req, res) => {
     res.status(200).json({ 
         status: "success",
         message: "Relay AI Backend is live and routing traffic!" 
