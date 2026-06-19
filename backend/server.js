@@ -126,12 +126,11 @@ const chatResponseSchema = {
 // -------------------------------------------------------------------------
 async function generateWithFallback({ contents, systemInstruction, responseSchema, temperature = 0.25, signal }) {
     const modelCascade = [
-    'gemini-3.5-flash',      // The current default: highest intelligence at high speed
-    'gemini-3-flash',        // Strong, fast fallback 
-    'gemini-2.5-flash',      // Highly stable, production-tested fallback
-    'gemini-3.1-flash-lite'  // Absolute fastest option for high-volume requests
+    'gemini-3.5-flash',       // Current stable: fastest and most capable
+    'gemini-3.1-flash-lite',  // Current stable: ultra-fast, high-volume fallback
+    'gemini-3-flash-preview', // The 3.0 model requires the "-preview" suffix
+    'gemini-2.5-flash'        // Highly stable, previous-generation fallback
 ];
-
 
     let lastError = null;
 
