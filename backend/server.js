@@ -158,8 +158,7 @@ async function generateWithFallback({ contents, systemInstruction, responseSchem
     // Current stable production strings for Google AI Studio
     const modelCascade = [
         'gemini-2.5-flash',     // Primary production model
-        'gemini-2.0-flash',     // Resilient high-speed fallback
-        'gemini-1.5-flash'      // Ultimate baseline fallback
+        'gemini-2.0-flash'     // Resilient high-speed fallback
     ];
     let lastError = null;
 
