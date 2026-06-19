@@ -12,7 +12,7 @@ app.use(cors({
     origin: 'https://relayai-usaii.vercel.app', // Adjust this if your frontend runs on a different origin
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID']
 }));
 
 const PORT = process.env.PORT || 5000;
