@@ -21,6 +21,27 @@ app.use(express.json());
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // -------------------------------------------------------------------------
+// MULTI-TENANT ISOLATION MIDDLEWARE
+// -------------------------------------------------------------------------
+const tenantGuard = (req, res, next) => {
+    const tenantId = req.headers['x-tenant-id'];
+    if (!tenantId || tenantId.trim() === '') {
+        return res.status(400).json({ 
+            success: false, 
+            error: "Missing X-Tenant-ID header. Anonymous multi-tenancy isolation requires a valid client fingerprint identifier." 
+        });
+    }
+    req.tenantId = tenantId; // Inject the tenant token securely into the request context
+    next();
+};
+
+
+
+
+
+
+
+// -------------------------------------------------------------------------
 // POLYMORPHIC SCHEMA (Strict validation for both Layouts)
 // -------------------------------------------------------------------------
 const polymorphicSchema = {
@@ -115,6 +136,20 @@ const chatResponseSchema = {
     },
     required: ["chat_reply", "updated_scaffold_data"]
 };
+
+
+// HELPERS
+// -------------------------------------------------------------------------
+function extractSafeJSON(rawText) {
+    let cleanText = rawText.trim();
+    if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+    }
+    return JSON.parse(cleanText);
+}
+
+
+
 
 // -------------------------------------------------------------------------
 // AUTOMATED MODEL FALLBACK ENGINE (REPAIRED)
@@ -244,7 +279,7 @@ async function saveScaffoldDetailsToDb(connection, scaffoldId, type, generatedDa
 // -------------------------------------------------------------------------
 // COMPATIBILITY ENDPOINTS
 // -------------------------------------------------------------------------
-app.get('/api/conversations', async (req, res) => {
+app.get('/api/conversations', tenantGuard, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id AS scaffold_id, title, scaffold_type FROM scaffolds ORDER BY id DESC');
         res.status(200).json({ success: true, data: rows });
@@ -253,7 +288,7 @@ app.get('/api/conversations', async (req, res) => {
     }
 });
 
-app.get('/api/conversations/:scaffoldId/history', async (req, res) => {
+app.get('/api/conversations/:scaffoldId/history', tenantGuard, async (req, res) => {
     try {
         const { scaffoldId } = req.params;
         const [messages] = await db.query(
@@ -269,7 +304,7 @@ app.get('/api/conversations/:scaffoldId/history', async (req, res) => {
 // -------------------------------------------------------------------------
 // GENERATE ROUTE (Initial creation)
 // -------------------------------------------------------------------------
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', tenantGuard, async (req, res) => {
     const { userPrompt, category, mode } = req.body;
     const selectedMode = mode || category || "MICRO_SAAS";
 
@@ -340,7 +375,7 @@ app.post('/api/generate', async (req, res) => {
 // -------------------------------------------------------------------------
 // GET INDIVIDUAL SCAFFOLD (Polymorphically builds the JSON for UI)
 // -------------------------------------------------------------------------
-app.get('/api/scaffolds/:id', async (req, res) => {
+app.get('/api/scaffolds/:id', tenantGuard, async (req, res) => {
     try {
         const scaffoldId = req.params.id;
 
@@ -422,7 +457,7 @@ app.get('/api/scaffolds/:id', async (req, res) => {
 // -------------------------------------------------------------------------
 // LIVE-SYNC CHAT ENDPOINT (State Modification)
 // -------------------------------------------------------------------------
-app.post('/api/scaffolds/:id/chat', async (req, res) => {
+app.post('/api/scaffolds/:id/chat', tenantGuard, async (req, res) => {
     const scaffoldId = req.params.id;
     const { userMessage } = req.body;
     
