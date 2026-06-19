@@ -348,7 +348,7 @@ app.post('/api/generate', tenantGuard, async (req, res) => {
 
             const [scaffoldResult] = await connection.query(
                 `INSERT INTO scaffolds (tenant_id, title, scaffold_type, raw_user_input, high_level_overview) VALUES (?, ?, ?, ?, ?)`,
-                [generatedData.title, generatedData.scaffold_type, userPrompt, generatedData.high_level_overview]
+                [tenantId, generatedData.title, generatedData.scaffold_type, userPrompt, generatedData.high_level_overview]
             );
             const scaffoldId = scaffoldResult.insertId;
 
