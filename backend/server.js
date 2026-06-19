@@ -653,7 +653,7 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-app.get('*', (req, res) => {
+app.get('/', (req, res) => {
     res.status(200).json({ 
         status: "success",
         message: "Relay AI Backend is live and routing traffic!" 
