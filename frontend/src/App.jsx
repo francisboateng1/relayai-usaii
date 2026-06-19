@@ -8,7 +8,7 @@ import {
 import { useChat } from './hooks/useChat';
 import { getOrCreateTenantId } from './utils/tenant';
 import API from './api/client'; // Import your new custom Axios client
-import { useOutsideClick } from './path/to/useOutsideClick';
+import { useOutsideClick } from './hooks/useOutsideClick';
 
 
 
@@ -152,7 +152,8 @@ function App() {
     }
   };
 
-  const handleGenerate = async (e) => {
+  
+ const handleGenerate = async (e) => {
     e.preventDefault();
 
     let finalPrompt = prompt;
@@ -249,75 +250,6 @@ function App() {
     setPersonaForm({ ...personaForm, [e.target.name]: e.target.value });
   };
 
-  const handleGenerate = async (e) => {
-    e.preventDefault();
-
-    let finalPrompt = prompt;
-    if (selectedMode === 'OPPORTUNITY' && oppInputMode === 'form') {
-      if (!personaForm.role.trim() || !personaForm.skills.trim()) return;
-      finalPrompt = `Find tailored opportunities for the following persona:\nRole/Status: ${personaForm.role}\nTechnical Skills: ${personaForm.skills}\nInterests: ${personaForm.interests}\nExperience Level: ${personaForm.experience}`;
-    } else {
-      if (!prompt.trim()) return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('https://relayai-usaii.vercel.app/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userPrompt: finalPrompt, mode: selectedMode })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setScaffoldData(result.data);
-        setScaffoldId(result.scaffoldId);
-        
-        const welcomeMessage = result.data.scaffold_type === 'OPPORTUNITY' 
-          ? `I've initialized your Opportunity Workspace for "${result.data.title}". Let me know if you want to refine your pitch or breakdown any specific criteria.`
-          : `I've initialized the Micro SaaS scaffold for "${result.data.title}". What specific adjustments would you like to make to this architecture?`;
-          
-        setChatHistory([{ role: 'model', message_text: welcomeMessage }]);
-        fetchHistoryList();
-      }
-    } catch (error) {
-      console.error("Generation logic failed:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChatSubmit = async (e) => {
-    e.preventDefault();
-    if (!chatMessage.trim() || !scaffoldId) return;
-    abortControllerRef.current = new AbortController();
-    const newUserMsg = { role: 'user', message_text: chatMessage };
-    setChatHistory(prev => [...prev, newUserMsg]);
-    setChatMessage('');
-    setChatLoading(true);
-
-    try {
-      const response = await fetch(`https://relayai-usaii.vercel.app/api/scaffolds/${scaffoldId}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage: newUserMsg.message_text }),
-        signal: abortControllerRef.current.signal
-      });
-      const result = await response.json();
-      
-      if (result.success) {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: result.reply }]);
-        setScaffoldData(result.updatedData);
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: "Generation stopped." }]);
-      } else {
-        setChatHistory(prev => [...prev, { role: 'model', message_text: "⚠️ Connection error. Could not sync updates." }]);
-      }
-    } finally {
-      setChatLoading(false);
-    }
-  };
 
 
 
